@@ -126,6 +126,20 @@ class BlockChain {
         return balance;
     }
 
+    getAllTransactionsForWallet(walletAddress) {
+        let transactionsForWallet = [];
+        
+        for (const block of this.chain) {
+            for (const transaction of block.transactions) {
+                if (transaction.fromAddress === walletAddress || transaction.toAddress === walletAddress) {
+                    transactionsForWallet.push(transaction);
+                }
+            }
+        }
+
+        return transactionsForWallet;
+    }
+
     isChainValid() {
         for (let i = 1; i < this.chain.length; i++) {
             const currentBlock = this.chain[i];
