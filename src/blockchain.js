@@ -77,7 +77,7 @@ class BlockChain {
     }
 
     createGenesisBlock() {
-        return new Block([new Transaction(null, null, null)], '0');
+        return new Block([], '0');
     }
 
     getLatestBlock() {
