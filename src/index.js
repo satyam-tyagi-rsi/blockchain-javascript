@@ -1,18 +1,14 @@
-const { BlockChain, Transaction } = require('./blockchain');
-const EC = require('elliptic').ec;
-const ec = new EC('secp256k1');
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
 
-//Create New chain
-const myBlockChain = new BlockChain();
+const PORT = process.env.PORT || 3002;
 
-const myKey = ec.keyFromPrivate('a07550ce8b1fa9000a1b5825210545c4a346314a63de417d383fe04077569d8f');
-const myWalletAddress = myKey.getPublic('hex');
-console.log(myKey.getPrivate('hex'));
+//middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: false}));
 
-const transaction1 = new Transaction(myWalletAddress, 'public key goes here', 10);
-transaction1.signTransaction(myKey);
-myBlockChain.addTransaction(transaction1);
-
-console.log('Miners start mining...........');
-myBlockChain.minePendingTransactionsBlock(myWalletAddress);
-console.log(`Satyam's miner balance is: ${myBlockChain.checkBalance(myWalletAddress)}`);
+app.listen(PORT, (err, result) => {
+    if(!err) console.log(`Server is listening on PORT ${PORT}`);
+    else throw new Error(`Error is ${err}`);
+});
