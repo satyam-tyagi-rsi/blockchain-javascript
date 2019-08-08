@@ -11,7 +11,7 @@ class Transaction {
     }
 
     calculateHash() {
-        return SHA256(this.fromAddress + this.toAddress + this.amount).toString();
+        return SHA256(this.fromAddress + this.toAddress + this.amount + this.timestamp).toString();
     }
 
     signTransaction(signingKey) {

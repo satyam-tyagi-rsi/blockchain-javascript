@@ -16,3 +16,4 @@ myBlockChain.addTransaction(transaction1);
 console.log('Miners start mining...........');
 myBlockChain.minePendingTransactionsBlock(myWalletAddress);
 console.log(`Satyam's miner balance is: ${myBlockChain.checkBalance(myWalletAddress)}`);
+console.log(`Is Chain valid : ${myBlockChain.isChainValid()}`);
