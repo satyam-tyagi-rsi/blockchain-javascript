@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "node_1": "nodemon src/index 3002",
-    "node_2": "nodemon src/index 3004"
+    "node_2": "nodemon src/index 3004",
+    "node_3": "nodemon src/index 3005"
   },
   "keywords": [],
   "author": "",

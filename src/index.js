@@ -12,7 +12,7 @@ const PORT = process.env.PORT || currentNodePORT;
 
 //middleware
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.urlencoded({extended: true}));
 
 app.get('/blockchain', (req, res) => {
     res.json({message: 'Blockchain retrieved successfully', data: blockchain});
@@ -25,47 +25,73 @@ app.post('/register-and-broadcast-node', (req, res) => {
     console.log('hostURL', hostUrl);
 
     const promisesArray = [];
-    if(blockchain.networkNodes.includes(hostUrl)) {
+    if(blockchain.networkNodesUrl.includes(hostUrl)) {
         res.json({message: 'Already added', data: []});
     } else {
         blockchain.networkNodesUrl.push(hostUrl);
-        console.log(blockchain.networkNodes);
-        blockchain.networkNodes.forEach(node => {
+        console.log(blockchain.networkNodesUrl);
+        blockchain.networkNodesUrl.forEach(node => {
             let options = {
                 uri: node + '/register-node',
-                method: 'GET',
+                method: 'POST',
                 body: {
-                    node: blockchain.currentNodeUrl
+                    node: hostUrl
                 },
                 json: true
             };
-            console.log('options', options);
+            // console.log('options', options);
             let promise = rp(options);
             promisesArray.push(promise);
         });
 
         Promise.all(promisesArray).then(result => {
-            res.json({message: 'Node added and broadcasted in a network'});
+            const bulkOptions = {
+                uri: hostUrl + '/bulk-register',
+                method: 'POST',
+                body: {
+                    nodes: [...blockchain.networkNodesUrl, blockchain.currentNodeUrl]
+                },
+                json: true
+            }
+            console.log('options', bulkOptions);
+            rp(bulkOptions).then(result => {
+                res.json({message: result.message});
+            });
         }).catch(err => {
-            console.log(err);
+            console.log(err.message);
             res.json({message: 'Does not added node'});
         });
     }
 });
 
-app.get('/register-node', (req, res) => {
+app.post('/register-node', (req, res) => {
     const registerNode = req.body.node;
     console.log('registerNode',registerNode);
     if(!registerNode) {
         return res.json({message: 'No node reuested for adding in network'});
     }
 
-    if(blockchain.currentNode === registerNode || blockchain.networkNodes.includes(registerNode)) {
+    if(blockchain.currentNodeUrl === registerNode || blockchain.networkNodesUrl.includes(registerNode)) {
         return res.json({message: 'Node already added'});
     }
 
-    blockchain.networkNodes.push(registerNode);
+    blockchain.networkNodesUrl.push(registerNode);
     res.json({message: 'Node added successfully in network'});
+});
+
+app.post('/bulk-register', (req, res) => {
+    let bulkNodes = req.body.nodes;
+    console.log('bulk nodes', bulkNodes);
+    if(bulkNodes && bulkNodes.length > 0) {
+
+        bulkNodes.forEach(node => {
+            if(blockchain.currentNodeUrl !== node && !blockchain.networkNodesUrl.includes(node)) {
+                blockchain.networkNodesUrl.push(node);
+                console.log(blockchain.networkNodesUrl);
+            }
+        });
+    }
+    res.json({message: 'Node broadcasted and registered with network successfully'});
 });
 
 app.listen(PORT, (err, result) => {
