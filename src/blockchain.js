@@ -1,7 +1,7 @@
 const SHA256 = require('crypto-js/sha256');
 const EC = require('elliptic').ec;
 const ec = new EC('secp256k1');
-const currentNodePORT = process.argv[2];
+const currentNodeUrl = process.argv[3];
 
 class Transaction {
     constructor(fromAddress, toAddress, amount) {
@@ -76,8 +76,8 @@ class Blockchain {
         this.difficulty = 8;
         this.pendingTransactions = [];
         this.miningRewards = 100;
-        this.networkNodesUrl = [];
-        this.currentNodeUrl = 'http://localhost:' + currentNodePORT
+        this.networkNodes = [];
+        this.currentNodeUrl = currentNodeUrl;
     }
 
     createGenesisBlock() {
