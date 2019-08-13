@@ -91,7 +91,6 @@ class Blockchain {
 
     minePendingTransactionsBlock(miningRewardsAddress) {
         const rewardTransaction = new Transaction(null, miningRewardsAddress, this.miningRewards);
-        console.log('rewardTransaction', rewardTransaction);
         this.pendingTransactions.push(rewardTransaction);
 
         let newblock = new Block(this.pendingTransactions, this.getLatestBlock().hash);
@@ -152,7 +151,6 @@ class Blockchain {
     }
 
     isChainValid(chain) {
-        console.log('chain is', chain)
         for (let i = 1; i < chain.length; i++) {
             const currentBlock = chain[i];
             const previousBlock = chain[i - 1];

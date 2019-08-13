@@ -18,7 +18,7 @@ app.use(logger('dev'));
 
 // Get blockchain
 app.get(`/chain`, (req, res) => {
-    res.json({ message: `Blockchain retrieved successfully`, data: blockchain });
+    res.json({ message: `Blockchain retrieved successfully`, data: blockchain.chain });
 });
 
 //Register and broadcast node
@@ -26,8 +26,9 @@ app.post(`/register-and-broadcast-node`, (req, res) => {
     const newNodeUrl = req.body.newNodeUrl;
     const registeredNodePromises = [];
 
-    if (!blockchain.networkNodes.includes(newNodeUrl)) blockchain.networkNodes.push(newNodeUrl);
+    if (blockchain.networkNodes.includes(newNodeUrl) || blockchain.currentNodeUrl === newNodeUrl) return res.json({message: 'Node cannot be addded'});
 
+    blockchain.networkNodes.push(newNodeUrl);
     blockchain.networkNodes.forEach(node => {
         let requestOptions = {
             uri: `${node}/register-node`,
@@ -118,7 +119,6 @@ app.post(`/transaction`, (req, res) => {
 app.post('/mine-and-broadcast', (req, res) => {
     const minerAddress = req.body.minerAddress;
 
-    console.log('minerAddress', minerAddress);
     const minedBlockPromises = [];
 
     const minedBlock = blockchain.minePendingTransactionsBlock(minerAddress);
@@ -169,6 +169,7 @@ app.get('/node-resolve', (req, res) => {
 
             let newChain = generateLongestChain(allNodesResult, blockchain.chain.length);
             if(newChain) {
+                blockchain.chain = newChain;
                 res.json({message: `Node updated successfully`, data: newChain});
             } else {
                 res.json({message: `Node already updated`, data: blockchain.chain});
@@ -182,10 +183,11 @@ app.get('/node-resolve', (req, res) => {
 
 function generateLongestChain (allNodesChain, maxChainLength) {
     let newChain = null;
-    allNodesChain.forEach(chain => {
-        if (blockchain.isChainValid(chain) && chain.length > maxChainLength) {
-            maxChainLength = chain.length;
-            newChain = chain;
+    allNodesChain.forEach(node => { 
+
+        if (blockchain.isChainValid(node) && node.data.length > maxChainLength) {
+            maxChainLength = node.data.length;
+            newChain = node.data;
         }
     });
 
