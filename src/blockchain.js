@@ -9,6 +9,7 @@ class Transaction {
         this.toAddress = toAddress;
         this.amount = amount;
         this.timestamp = Date.now();
+        this.transactionHash = this.calculateHash();
     }
 
     calculateHash() {
@@ -73,7 +74,7 @@ class Block {
 class Blockchain {
     constructor() {
         this.chain = [this.createGenesisBlock()];
-        this.difficulty = 8;
+        this.difficulty = 3;
         this.pendingTransactions = [];
         this.miningRewards = 100;
         this.networkNodes = [];
@@ -90,25 +91,33 @@ class Blockchain {
 
     minePendingTransactionsBlock(miningRewardsAddress) {
         const rewardTransaction = new Transaction(null, miningRewardsAddress, this.miningRewards);
+        console.log('rewardTransaction', rewardTransaction);
         this.pendingTransactions.push(rewardTransaction);
 
-        let block = new Block(this.pendingTransactions, this.getLatestBlock().hash);
-        block.mineBlock(this.difficulty);
+        let newblock = new Block(this.pendingTransactions, this.getLatestBlock().hash);
+        newblock.mineBlock(this.difficulty);
 
-        this.chain.push(block);
+        this.chain.push(newblock);
         this.pendingTransactions = [];
+
+        return newblock;
+    }
+
+    createTransaction (transactionObject) {  
+        return new Promise ((resolve, reject) => {
+            const transaction = new Transaction(transactionObject.fromAddress, transactionObject.toAddress, transactionObject.amount);
+            if(!transaction.fromAddress || !transaction.toAddress || !transaction.amount) {
+                reject('Transaction must include from address, to address and amount');
+            }
+            
+            this.pendingTransactions.push(transaction);
+            resolve({message: 'Transaction created successfully!', data: transaction});
+        });
     }
 
     addTransaction(transaction) {
-        if(!transaction.fromAddress || !transaction.toAddress) {
-            throw new Error('Transaction must include to and from address');
-        }
-
-        if(!transaction.isValid()) {
-            throw new Error('Cannot add invalid transaction to chain');
-        }
-        
         this.pendingTransactions.push(transaction);
+        return this.chain.length + 1;
     }
 
     checkBalance(address) {
@@ -142,12 +151,13 @@ class Blockchain {
         return transactionsForWallet;
     }
 
-    isChainValid() {
-        for (let i = 1; i < this.chain.length; i++) {
-            const currentBlock = this.chain[i];
-            const previousBlock = this.chain[i - 1];
+    isChainValid(chain) {
+        console.log('chain is', chain)
+        for (let i = 1; i < chain.length; i++) {
+            const currentBlock = chain[i];
+            const previousBlock = chain[i - 1];
 
-            if (!currentBlock.hasValidTransaction()) return false;
+            // if (!currentBlock.hasValidTransaction()) return false;
 
             if (currentBlock.hash !== currentBlock.calculateHash()) return false;
 
