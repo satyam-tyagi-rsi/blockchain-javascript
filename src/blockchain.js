@@ -103,19 +103,13 @@ class Blockchain {
     }
 
     createTransaction (transactionObject) {  
-        return new Promise ((resolve, reject) => {
-            const transaction = new Transaction(transactionObject.fromAddress, transactionObject.toAddress, transactionObject.amount);
-            if(!transaction.fromAddress || !transaction.toAddress || !transaction.amount) {
-                reject('Transaction must include from address, to address and amount');
-            }
-            
-            this.pendingTransactions.push(transaction);
-            resolve({message: 'Transaction created successfully!', data: transaction});
-        });
+        const newTransaction = new Transaction(transactionObject.fromAddress, transactionObject.toAddress, transactionObject.amount);
+        this.addTransaction(newTransaction);
+        return newTransaction;
     }
 
-    addTransaction(transaction) {
-        this.pendingTransactions.push(transaction);
+    addTransaction(transactionObj) {
+        this.pendingTransactions.push(transactionObj);
         return this.chain.length + 1;
     }
 

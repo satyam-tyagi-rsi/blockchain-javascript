@@ -18,7 +18,7 @@ app.use(logger('dev'));
 
 // Get blockchain
 app.get(`/chain`, (req, res) => {
-    res.json({ message: `Blockchain retrieved successfully`, data: blockchain.chain });
+    res.json({ message: `Blockchain retrieved successfully`, data: blockchain });
 });
 
 //Register and broadcast node
@@ -83,77 +83,69 @@ app.post(`/register-bulk-nodes`, (req, res) => {
 // Broadcast transaction
 app.post(`/transaction-broadcast`, (req, res) => {
     const transaction = { fromAddress: req.body.fromAddress, toAddress: req.body.toAddress, amount: req.body.amount};
-    let transactionPromises = [];
-    
-    blockchain.createTransaction(transaction).then(result => {
-        blockchain.networkNodes.forEach(node => {
-            let requestOptions = {
-                uri: `${node}/transaction`,
-                method: `POST`,
-                body: {transaction: result.data},
-                json: true
-            }
+    const newTransaction = blockchain.createTransaction(transaction);
 
-            transactionPromises.push(rp(requestOptions));
-        });
-
-        if(transactionPromises.length > 0) {
-            Promise.all(transactionPromises).then(() => {
-                res.json({message: 'Transaction broadcasted and created in network'});
-            });
-        } else {
-            res.json({message: `Transaction created but not broadcasted`});
+    const requestPromises = [];
+    blockchain.networkNodes.forEach(node => {
+        const requestOptions = {
+            uri: `${node}/transaction`,
+            method: `POST`,
+            body: newTransaction,
+            json: true
         }
+
+        requestPromises.push(rp(requestOptions));
+    });
+
+    Promise.all(requestPromises).then(() => {
+        res.json({message: `Transaction created and broadcasted successfully`});
     });
 });
 
 //Add broadcasted transaction
 app.post(`/transaction`, (req, res) => {
-    const transaction = req.body.transaction;
-    const nextBlockNumber = blockchain.addTransaction(transaction);
-    
-    res.json({message: `Transaction will be added in Block ${nextBlockNumber}`});
+    const newTransaction = req.body;
+    const nextBlockNumber = blockchain.addTransaction(newTransaction);
+    res.json({message: `Transaction will be added in block ${nextBlockNumber}`});
 });
 
 //Mine Block
-app.post('/mine-and-broadcast', (req, res) => {
+app.post('/mine', (req, res) => {
     const minerAddress = req.body.minerAddress;
-
-    const minedBlockPromises = [];
-
     const minedBlock = blockchain.minePendingTransactionsBlock(minerAddress);
+
+    const requestPromises = [];
     blockchain.networkNodes.forEach(node => {
         let requestOptions = {
-            uri: `${node}/add-mined-block`,
+            uri: `${node}/receive-mined-block`,
             method: `POST`,
-            body: {minedBlock},
+            body: minedBlock,
             json: true
         }
 
-        minedBlockPromises.push(rp(requestOptions));
+        requestPromises.push(rp(requestOptions));
     });
 
-    if(minedBlockPromises.length > 0) {
-        Promise.all(minedBlockPromises).then(() => {
-            res.json({message: 'New Block mined and broadcasted on network'});
-        });
+    Promise.all(requestPromises).then(() => {
+        res.json({message: 'New Block mined and broadcasted successfully'});
+    });
+});
+
+app.post(`/receive-mined-block`, (req, res) => {
+    const minedBlock = req.body;
+    const lastBlock = blockchain.getLatestBlock();
+
+    if(lastBlock.hash === minedBlock.previousHash) {
+        blockchain.chain.push(minedBlock);
+        blockchain.pendingTransactions = [];
+        res.json({message: `Mined block added and received successfully`, newBlock: minedBlock});
     } else {
-        res.json({message: `New Block mined but not broadcasted`});
+        res.json({message: `Mined block rejected`, newBlock: minedBlock});
     }
 });
 
-app.post(`/add-mined-block`, (req, res) => {
-    const minedBlock = req.body.minedBlock;
-
-    blockchain.chain.push(minedBlock);
-    blockchain.pendingTransactions = [];
-
-    res.json({message: `Mined block added successfully`});
-});
-
 app.get('/node-resolve', (req, res) => {
-    const resolveNodePromises = [];
-
+    const requestPromises = [];
     blockchain.networkNodes.forEach(node => {    
         const requestOptions = {
             uri: `${node}/chain`,
@@ -161,33 +153,27 @@ app.get('/node-resolve', (req, res) => {
             json: true
         }
 
-        resolveNodePromises.push(rp(requestOptions));
+        requestPromises.push(rp(requestOptions));
     });
 
-    if(resolveNodePromises.length > 0) {
-        Promise.all(resolveNodePromises).then(allNodesResult => {
+    Promise.all(requestPromises).then(blockchains => {
 
-            let newChain = generateLongestChain(allNodesResult, blockchain.chain.length);
-            if(newChain) {
-                blockchain.chain = newChain;
-                res.json({message: `Node updated successfully`, data: newChain});
-            } else {
-                res.json({message: `Node already updated`, data: blockchain.chain});
-            }
-        });
-    } else {
-        res.json({message: `Node already updated`, data: blockchain.chain});
-    }
-
+        let newChain = generateLongestChain(blockchains, blockchain.chain.length);
+        if(newChain) {
+            blockchain.chain = newChain;
+            res.json({message: `Node updated successfully`, data: newChain});
+        } else {
+            res.json({message: `Node already updated`, data: blockchain.chain});
+        }
+    });
 });
 
-function generateLongestChain (allNodesChain, maxChainLength) {
+function generateLongestChain (blockchains, maxChainLength) {
     let newChain = null;
-    allNodesChain.forEach(node => { 
-
-        if (blockchain.isChainValid(node) && node.data.length > maxChainLength) {
-            maxChainLength = node.data.length;
-            newChain = node.data;
+    blockchains.forEach(blckchain => {
+        if (blockchain.isChainValid(blckchain.data) && blckchain.data.chain.length > maxChainLength) {
+            maxChainLength = blckchain.data.chain.length;
+            newChain = blckchain.data.chain;
         }
     });
 
